@@ -1,0 +1,74 @@
+---
+stages:
+  # - test
+  - build
+  - release
+  - deploy
+
+# test:sonarqube:
+#   stage: test
+#   image:     
+#     name: sonarsource/sonar-scanner-cli:4.8.0
+#     entrypoint: [""]
+#   script:
+#     - cd frontend
+#     - >
+#       sonar-scanner 
+#       -Dsonar.projectKey=$SONARQUBE_FRONTEND_PRJ_KEY 
+#       -Dsonar.sources=. 
+#       -Dsonar.host.url=$SONARQUBE_URL 
+#       -Dsonar.login=$SONARQUBE_FRONTEND_TOKEN
+
+build:
+  stage: build
+  image: docker:24.0.2-dind
+  before_script:
+    - until docker info; do sleep 1; done
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+  script:
+    - docker pull $CI_REGISTRY_IMAGE/ds-frontend:latest || true
+    - cd frontend
+    - >
+      docker build
+      --pull
+      --cache-from $CI_REGISTRY_IMAGE/ds-frontend:latest
+      --tag $CI_REGISTRY_IMAGE/ds-frontend:$VERSION
+      .
+    - docker push $CI_REGISTRY_IMAGE/ds-frontend:$VERSION
+
+release:
+  stage: release
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      when: manual
+    - if: $CI_COMMIT_BRANCH == "main"
+      when: manual
+  variables:
+    GIT_STRATEGY: none
+  image: docker:24.0.2-dind
+  before_script:
+    - until docker info; do sleep 1; done
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+  script:
+    - docker pull $CI_REGISTRY_IMAGE/ds-frontend:$VERSION
+    - docker tag $CI_REGISTRY_IMAGE/ds-frontend:$VERSION $CI_REGISTRY_IMAGE/ds-frontend:latest
+    - docker push $CI_REGISTRY_IMAGE/ds-frontend:latest
+
+deploy:
+  stage: deploy
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      when: manual
+    - if: $CI_COMMIT_BRANCH == "main"
+      when: manual
+  variables:
+    GIT_STRATEGY: none
+  image: curlimages/curl:8.1.0
+  script:
+    - >
+      curl -X POST
+      --fail
+      -F token=$INFRA_PIPELINE_TOKEN
+      -F "ref=main"
+      -F "variables[RUN_PIPELINE]=ds-chart"
+      $DS_INFRA_PIPELINE
