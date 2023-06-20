@@ -1,24 +1,24 @@
 ---
 
 stages:
-  # - test
+  - test
   - build
   - release
   - deploy
 
-# test:sonarqube:
-#   stage: test
-#   image:
-#     name: sonarsource/sonar-scanner-cli:4.8.0
-#     entrypoint: [""]
-#   script:
-#     - cd backend
-#     - >
-#       sonar-scanner 
-#       -Dsonar.projectKey=$SONARQUBE_BACKEND_PRJ_KEY 
-#       -Dsonar.sources=. 
-#       -Dsonar.host.url=$SONARQUBE_URL 
-#       -Dsonar.login=$SONARQUBE_BACKEND_TOKEN
+test:sonarqube:
+  stage: test
+  image:
+    name: sonarsource/sonar-scanner-cli:4.8.0
+    entrypoint: [""]
+  script:
+    - cd backend
+    - >
+      sonar-scanner 
+      -Dsonar.projectKey=$SONARQUBE_BACKEND_PRJ_KEY 
+      -Dsonar.sources=. 
+      -Dsonar.host.url=$SONARQUBE_URL 
+      -Dsonar.login=$SONARQUBE_BACKEND_TOKEN
 
 build:
   stage: build
